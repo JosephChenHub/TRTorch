@@ -8,7 +8,9 @@
 #include "torch/csrc/jit/passes/lower_graph.h"
 #include "torch/csrc/jit/passes/lower_tuples.h"
 #include "torch/csrc/jit/passes/peephole.h"
-#include "torch/csrc/jit/passes/remove_mutation.h"
+#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 7  //>= 1.7
+#include "torch/csrc/jit/passes/remove_mutation.h" // -> Pytorch 1.7
+#endif 
 
 #include "core/lowering/lowering.h"
 #include "core/lowering/passes/passes.h"

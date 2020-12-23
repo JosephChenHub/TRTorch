@@ -1,0 +1,9 @@
+
+file (GLOB_RECURSE CXX_SRC *.cc *.cpp *.c)
+
+set(HEADERS pass)
+
+
+set(SUB_SRCS ${CXX_SRC} PARENT_SCOPE)
+set(SUB_INC ${HEADERS} PARENT_SCOPE) 
+
