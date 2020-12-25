@@ -1,7 +1,6 @@
 
 cmake_minimum_required(VERSION 3.10)
-
-project(core LANGUAGES CXX C)
+project(TRTorch LANGUAGES CXX)
 
 # lib's name
 set(EXE_NAME trtorch)  
@@ -15,9 +14,9 @@ set(CMAKE_BUILD_TYPE "Release")
 # Enable compiler warnings
 if (CMAKE_COMPILER_IS_GNUCC)
     if(CMAKE_BUILD_TYPE MATCHES "Debug")
-	    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -ggdb -g -O0 -Wno-deprecated-declarations ")
+      set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -ggdb -g -O0 -Wno-deprecated-declarations -fPIC -pthread")
     else(CMAKE_BUILD_TYPE MATCHES "Release")
-        set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -O2 -Wno-deprecated-declarations -Wno-unused-function")
+      set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -O3 -Wno-deprecated-declarations -Wno-unused-function -fPIC -pthread")
     endif()
 endif()
 
@@ -47,14 +46,14 @@ MESSAGE(STATUS "Find TensorRT libs at ${TENSORRT_LIBRARY}")
 #find_package_handle_standard_args(TENSORRT DEFAULT_MSG TENSORRT_INCLUDE_DIR TENSORRT_LIBRARY)
 #if(NOT TENSORRT_FOUND)
 #    message(ERROR "Cannot find TensorRT library.")
-#    endif()
+#endif()
 
 # CUDA
 find_package(CUDA 10.0 REQUIRED)
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
     list(APPEND CUDA_NVCC_FLAGS "-Xcompiler -fPIC --expt-extended-lambda -std=c++11 -g -G")
 else(CMAKE_BUILD_TYPE MATCHES "Release")
-    list(APPEND CUDA_NVCC_FLAGS "-Xcompiler -fPIC --expt-extended-lambda -std=c++11 -O2")
+    list(APPEND CUDA_NVCC_FLAGS "-Xcompiler -fPIC --expt-extended-lambda -std=c++11 -O3")
 endif()
 CUDA_INCLUDE_DIRECTORIES(${CUDNN_INCLUDE_DIR} ${TENSORRT_INCLUDE_DIR})
 
@@ -73,28 +72,40 @@ add_definitions(-DTORCH_VERSION_PATCH=${Torch_VERSION_PATCH})
 # -----------------------------------------
 #  compilation 
 # -----------------------------------------
-
-set(CXX_SRC  core/compiler.cpp)
+include_directories(${PROJECT_SOURCE_DIR})
+set(CXX_SRC  ${PROJECT_SOURCE_DIR}/core/compiler.cpp)
 
 set(COMMON_INC ${CUDA_INCLUDE_DIRS}  ${TENSORRT_INCLUDE_DIR} ${CUDNN_INCLUDE_DIR} ${TORCH_INCLUDE_DIRS}) 
 
 
-list(APPEND SUBSETS conversion runtime lowering util)
+list(APPEND SUBSETS conversion lowering util runtime)
 
 foreach(SUBMOD ${SUBSETS})
    add_subdirectory(${PROJECT_SOURCE_DIR}/core/${SUBMOD}) 
    add_library(${SUBMOD} SHARED ${SUB_SRCS} )
    target_link_libraries(${SUBMOD} PUBLIC ${TENSORRT_LIBRARY} ${TORCH_LIBRARIES} ${CUDA_LIBRARIES})
    target_include_directories(${SUBMOD} PUBLIC  ${COMMON_INC}   ${SUB_INC} ${PROJECT_SOURCE_DIR})
+
+   #list(APPEND CORE_SRC ${SUB_SRCS})
+   #list(APPEND CORE_INC ${SUB_INC})
 endforeach()
+
 add_library(core SHARED ${CXX_SRC} )
-target_link_libraries(core PUBLIC conversion runtime lowering util) 
+target_link_libraries(core PUBLIC conversion lowering util runtime) 
+
+
+#add_library(core SHARED ${CORE_SRC} ${CXX_SRC})
+#target_include_directories(core PUBLIC ${CORE_INC} ${COMMON_INC} {PROJECT_SOURCE_DIR})
+#target_link_libraries(core PUBLIC ${TENSORRT_LIBRARY} ${TORCH_LIBRARIES} ${CUDA_LIBRARIES})
+
+
+
 
 
 add_subdirectory(cpp/api) 
 add_library(${EXE_NAME} SHARED ${SUB_SRCS})
 target_link_libraries(${EXE_NAME} PUBLIC core) 
-target_include_directories(${EXE_NAME} PUBLIC cpp/api/${SUB_INC})
+target_include_directories(${EXE_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/cpp/api/${SUB_INC} ${PROJECT_SOURCE_DIR}/core/)
 
 
 
