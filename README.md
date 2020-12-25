@@ -73,134 +73,48 @@ torch.jit.save(trt_ts_module, "trt_torchscript_module.ts")
 ### Dependencies
 These are the following dependencies used to verify the testcases. TRTorch can work with other versions, but the tests are not guaranteed to pass.
 
-- Bazel 3.7.0
-- Libtorch 1.7.1 (built with CUDA 11.0)
-- CUDA 11.0
-- cuDNN 8
-- TensorRT 7.2.1.6
+- Libtorch 1.6.0 (built with CUDA 10.2)
+- CUDA 10.2
+- cuDNN 7
+- TensorRT 7.0.0.11 or higher 
 
-## Prebuilt Binaries and Wheel files
+## Compiling TRTorch (use CMake)
+1. download the TensorRT library (e.g., TensorRT-7.0.0.11 with cuda 10.2 support) 
+2. download  libtorch built with Pre-Cxx ABI: 
+```
+wget https://download.pytorch.org/libtorch/cu102/libtorch-shared-with-deps-1.6.0.zip
+```
+or 
+```
+axel -n 5 "https://download.pytorch.org/libtorch/cu102/libtorch-shared-with-deps-1.6.0.zip"
+```
+3. build the library `trtorch`:
+```
+mkdir build && cd build \
+cmake .. -DCMAKE_PREFIX_PATH="${TENSORRT_PATH}; ${LIBTORCH_PATH}" \
+make -j8
+```
+where `${TENSORRT_PATH}` and `${LIBTORCH_PATH}` refer to the path that contains TensorRT and libtorch respectively. 
+4. build the python wrapper:
+```
+cd py \
+python3 setup.py install 
+```
+if you have no access to `root`, use the command :
+```
+python3 setup.py install --prefix which_dir_you_want_install 
+```
+remember add the path `which_dir_you_want_install` to the python environment.
 
-Releases: https://github.com/NVIDIA/TRTorch/releases
-
-## Compiling TRTorch
-
-### Installing Dependencies
-
-#### 0. Install Bazel
-
-If you don't have bazel installed, the easiest way is to install bazelisk using the method of you choosing https://github.com/bazelbuild/bazelisk
-
-Otherwise you can use the following instructions to install binaries https://docs.bazel.build/versions/master/install.html
-
-Finally if you need to compile from source (e.g. aarch64 until bazel distributes binaries for the architecture) you can use these instructions
-
-```sh
-export BAZEL_VERSION=<VERSION>
-mkdir bazel
-cd bazel
-curl -fSsL -O https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-dist.zip
-unzip bazel-$BAZEL_VERSION-dist.zip
-bash ./compile.sh
+5. run the `demo.py`:
+```
+python3 demo.py 
 ```
 
-You need to start by having CUDA installed on the system, LibTorch will automatically be pulled for you by bazel,
-then you have two options.
 
-#### 1. Building using cuDNN & TensorRT tarball distributions
+## Compiling TRTorch (use Bazel)
+see the `master` branch
 
-> This is recommended so as to build TRTorch hermetically and insures any bugs are not caused by version issues
-
-> Make sure when running TRTorch that these versions of the libraries are prioritized in your `$LD_LIBRARY_PATH`
-
-1. You need to download the tarball distributions of TensorRT and cuDNN from the NVIDIA website.
-    - https://developer.nvidia.com/cudnn
-    - https://developer.nvidia.com/tensorrt
-2. Place these files in a directory (the directories `third_party/dist_dir/[x86_64-linux-gnu | aarch64-linux-gnu]` exist for this purpose)
-3. Compile using:
-``` shell
-bazel build //:libtrtorch --compilation_mode opt --distdir third_party/dist_dir/[x86_64-linux-gnu | aarch64-linux-gnu]
-```
-
-#### 2. Building using locally installed cuDNN & TensorRT
-
-> If you find bugs and you compiled using this method please disclose it in the issue
-> (an `ldd` dump would be nice too)
-
-1. Install TensorRT, CUDA and cuDNN on the system before starting to compile.
-2. In `WORKSPACE` comment out
-```py
-# Downloaded distributions to use with --distdir
-http_archive(
-    name = "cudnn",
-    urls = ["<URL>",],
-
-    build_file = "@//third_party/cudnn/archive:BUILD",
-    sha256 = "<TAR SHA256>",
-    strip_prefix = "cuda"
-)
-
-http_archive(
-    name = "tensorrt",
-    urls = ["<URL>",],
-
-    build_file = "@//third_party/tensorrt/archive:BUILD",
-    sha256 = "<TAR SHA256>",
-    strip_prefix = "TensorRT-<VERSION>"
-)
-```
-and uncomment
-```py
-# Locally installed dependencies
-new_local_repository(
-    name = "cudnn",
-    path = "/usr/",
-    build_file = "@//third_party/cudnn/local:BUILD"
-)
-
-new_local_repository(
-   name = "tensorrt",
-   path = "/usr/",
-   build_file = "@//third_party/tensorrt/local:BUILD"
-)
-```
-3. Compile using:
-``` shell
-bazel build //:libtrtorch --compilation_mode opt
-```
-
-### Debug build
-``` shell
-bazel build //:libtrtorch --compilation_mode=dbg
-```
-
-### Native compilation on NVIDIA Jetson AGX
-``` shell
-bazel build //:libtrtorch --distdir third_party/dist_dir/aarch64-linux-gnu
-```
-> Note: Please refer [installation](docs/tutorials/installation.html) instructions for Pre-requisites
-
-A tarball with the include files and library can then be found in bazel-bin
-
-### Running TRTorch on a JIT Graph
-
-> Make sure to add LibTorch to your LD_LIBRARY_PATH <br>
->`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/bazel-TRTorch/external/libtorch/lib`
-
-
-``` shell
-bazel run //cpp/trtorchexec -- $(realpath <PATH TO GRAPH>) <input-size>
-```
-
-## Compiling the Python Package
-
-To compile the python package for your local machine, just run `python3 setup.py install` in the `//py` directory.
-To build wheel files for different python versions, first build the Dockerfile in ``//py`` then run the following
-command
-```
-docker run -it -v$(pwd)/..:/workspace/TRTorch build_trtorch_wheel /bin/bash /workspace/TRTorch/py/build_whl.sh
-```
-Python compilation expects using the tarball based compilation strategy from above.
 
 ## How do I add support for a new op...
 
